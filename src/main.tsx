@@ -16,10 +16,10 @@ let camera: THREE.PerspectiveCamera;
 let scene: THREE.Scene;
 let renderer: THREE.WebGLRenderer;
 let mesh: THREE.Group<THREE.Object3DEventMap>;
-
+let model[]: THREE.Object3D | undefined;
 
 const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+const mouse = new THREE.Vector2();
 
 
 const BasicShader = {
@@ -88,22 +88,21 @@ function init() {
 	//scene.add( cube );
 
 	const loader = new GLTFLoader();
+
+
 	loader.load( 'public/models/shiba/scene.gltf', function ( gltf ) {
+	model = gltf.scene;
 	scene.add(gltf.scene);
-	mesh = gltf.scene;
 	}, undefined, function ( error ) {
-
 	console.error( error );
-
 	} );
-
-	console.log(mesh); 
+	if(model){
+		scene.add(model);
+	}
+	
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setAnimationLoop( animation );
-
-	
-	//const container = renderer.domElement.parentNode;
-	//container.addEventListener( 'pointermove', onPointerMove );
+	renderer.domElement.addEventListener('click', onClick);
 }
 
 function animation( time: number ) {
@@ -156,29 +155,32 @@ export function mount( container ) {
 }
 
 export function updateCube(xPos: number) {
-	const geometry = new THREE.BoxGeometry( xPos, xPos, xPos );
-	const material = new THREE.MeshBasicMaterial( { color: 0x20ff10 } );
-	const cube = new THREE.Mesh( geometry, material );
-	scene.add( cube );
+	// const geometry = new THREE.BoxGeometry( xPos, xPos, xPos );
+	// const material = new THREE.MeshBasicMaterial( { color: 0x20ff10 } );
+	// const cube = new THREE.Mesh( geometry, material );
+	// scene.add( cube );
+
+  	if (model) {
+    	model.rotation.y += 0.01;
+    	model.scale.set(2, 2, 2);
+  	}
 }
 
-// function onPointerMove( event ) {
+function onClick(event: MouseEvent) {
+	const rect = renderer.domElement.getBoundingClientRect();
+	mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+	mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-// 	pointer.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-// 	pointer.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
-// 	raycaster.setFromCamera( pointer, camera );
-
-// 	// See if the ray from the camera into the world hits one of our meshes
-// 	const intersects = raycaster.intersectObject( this.t.scene );
-
-// 	// Toggle rotation bool for meshes that we clicked
-// 	if ( intersects.length > 0 ) {
-// 		console.log('it hits!');
-// 		//helper.position.set( 0, 0, 0 );
-// 		//helper.lookAt( intersects[ 0 ].face.normal );
-
-// 		//helper.position.copy( intersects[ 0 ].point );
-
-// 	}
-
-// }
+	raycaster.setFromCamera(mouse, camera);
+	const intersects = raycaster.intersectObjects(scene.children);
+	if (intersects.length > 0) {
+		let object = intersects[0].object;
+		console.log(object);
+		
+		// Traverse up to find the parent Group or object you want to select
+		while (object.parent && object.parent.type !== 'Scene') {
+			object = object.parent;
+		}
+		object.position.x += 0.1;
+	}
+};
