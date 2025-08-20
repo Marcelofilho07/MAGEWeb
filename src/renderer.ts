@@ -13,6 +13,8 @@ const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+let selectedObject: THREE.Object3D<THREE.Object3DEventMap> | null = null;
+
 const BasicShader = {
 
 	name: 'BasicShader',
@@ -88,6 +90,9 @@ function animation( time: number ) {
 	// do not render if not in DOM:
 
   	//requestAnimationFrame(animation);
+	if(selectedObject) {
+		selectedObject.rotation.y += 0.01; // rotate the selected object
+	}
 	controls.update( clock.getDelta() );
 	renderer.render( scene, camera );
 
@@ -166,6 +171,11 @@ function onClick(event: MouseEvent) {
 			object = object.parent;
 		}
 		object.position.x += 1.0;
+		//object.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+		console.log(object.rotation);
+		object.scale.x *= 1.1;
+		object.scale.y *= 1.1;
+		object.scale.z *= 1.1;
 	}
 };
 
@@ -219,4 +229,14 @@ export function getScale(id: number): {x: number, y: number, z: number}
 		return {x: scl.x, y: scl.y, z: scl.z};
 	}
 	return {x: 1, y: 1, z: 1};
+}
+
+export function getObj(id: number): THREE.Object3D<THREE.Object3DEventMap> | null
+{
+	const object = scene.getObjectByProperty('id', id);
+	if (object) {
+		selectedObject = object;
+		return object;
+	}
+	return null;
 }
