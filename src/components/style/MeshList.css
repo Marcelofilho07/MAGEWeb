@@ -1,0 +1,40 @@
+.mesh-list {
+  width: 100%;
+  height: 300px;
+  max-height: 300px;
+  background-color: #6b9ac4;
+  color: white;
+  font-family: sans-serif;
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* keep this */
+}
+
+.mesh-list-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 180px; /* this triggers scrollbar */
+}
+
+.mesh-list-item {
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  background-color: #97d8c4;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mesh-list-item:hover {
+  background-color: #f4b942;
+}
+
+.mesh-list-item.selected {
+  background-color: #4059ad;
+}

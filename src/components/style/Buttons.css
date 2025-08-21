@@ -1,0 +1,57 @@
+/* Reset and layout styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Hide file input */
+.sidebar input[type="file"] {
+  width: auto;
+  margin: 1rem auto;
+  display: block;
+  color: transparent;
+  max-width: 80%;
+  cursor: pointer;
+  height: 0;
+  visibility: collapse;
+}
+
+/* General button style */
+.sidebar button,
+.upload-label {
+  display: inline-block;
+  width: 100%;
+  height: 50px;
+  margin: 0.5rem 0;
+  padding: 0.75rem 1.5rem;
+  background-color: #97D8C4; /* Teal */
+  color: #EFF2F1; /* Off white */
+  border: none;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover state for all buttons */
+.sidebar button:hover,
+.upload-label:hover {
+  background-color: #F4B942; /* Amber */
+  color: #001f3f; /* Darker text contrast */
+}
+
+/* File upload button (hidden by default) */
+.sidebar input[type="file"]::file-selector-button,
+.sidebar input[type="file"]::-webkit-file-upload-button {
+  display: none;
+}

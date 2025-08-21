@@ -1,4 +1,4 @@
-import './UploadButton.css';
+import './style/Buttons.css';
 import { addCapsule, addCone, addCube, addCylinder, addPlane} from '../renderer.ts';
 
 

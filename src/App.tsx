@@ -13,14 +13,14 @@ export default function App() {
   return (
     <>
       <div className="app-container">
-        <div className="cube" ref={containerRef}>
+        <div className="canvas" ref={containerRef}>
           <canvas id="myCanvas" />
         </div>
         <div className="sidebar">
           <AddPrimitiveButtons/>
           <UploadButton/>
           <MeshList/>
-          <TransformMenu selected={true}/>
+          <TransformMenu/>
         </div>
       </div>
     </>

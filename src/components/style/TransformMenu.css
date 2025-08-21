@@ -1,0 +1,51 @@
+.transform-controls {
+  width: 100%;                     /* 💡 Full width of parent (sidebar) */
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #97D8C4;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #001f3f;
+  box-sizing: border-box;         /* ensures padding doesn't overflow */
+}
+
+.transform-group label {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+  display: block;
+  color: #001f3f;
+}
+
+.axis-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.axis-group span {
+  color: #001f3f;
+}
+
+.axis-group input {
+  width: 50px;
+  background-color: #EFF2F1;
+  color: #001f3f;
+  border: 1px solid #97D8C4;
+  border-radius: 3px;
+  padding: 0.25rem;
+  transition: border-color 0.2s;
+}
+
+.axis-group input:focus {
+  border-color: #F4B942;
+  outline: none;
+}
+
+.transform-controls.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

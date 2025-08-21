@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import './MeshList.css';
-import { getSelectedObjPosition, getSelectedObjScale, onSceneListRemove, onSelectUpdate, updateSelectedObjTransform } from '../renderer';
+import { useEffect, useState } from 'react';
+import './style/TransformMenu.css';
+import { getSelectedObjPosition, getSelectedObjRotation, getSelectedObjScale, onSceneListRemove, onSelectUpdate, updateSelectedObjTransform } from '../renderer';
 
 interface Position {
     x: number;
@@ -28,7 +28,7 @@ export default function TransformMenu() {
 
     useEffect(() => {
         const onSelectUpdateUnsub = onSelectUpdate.subscribe(onNewObjectSelected)
-        const onSceneListRemoveUnsub = onSceneListRemove.subscribe(setSelectedFalse) 
+        const onSceneListRemoveUnsub = onSceneListRemove.subscribe(onObjectDeleted) 
 
         return () => {
             onSelectUpdateUnsub();
@@ -40,13 +40,17 @@ export default function TransformMenu() {
         updateSelectedObjTransform(position, rotation, scale);
     }, [position, rotation, scale]);
 
-    function setSelectedFalse(){
+    function onObjectDeleted(){
         setSelected(false);
+        setPosition({x: 0, y: 0, z: 0});
+        setRotation({x: 0, y: 0, z: 0});
+        setScale({x: 1, y: 1, z: 1});
+
     }
     function onNewObjectSelected() {
         setSelected(true);
         setPosition(getSelectedObjPosition());
-        //setRotation(getSelectedObjRotation()); //fix rotate boy
+        setRotation(getSelectedObjRotation());
         setScale(getSelectedObjScale());
     }
 
@@ -67,11 +71,11 @@ export default function TransformMenu() {
                 <label>Rotation:</label>
                 <div className="axis-group">
                 <span>x:</span><input type="number" value={rotation.x}
-                /*onChange={(e) => setRotation({ ...rotation, x: parseFloat(e.target.value) || 0 })}*//>
+                onChange={(e) => setRotation({ ...rotation, x: parseFloat(e.target.value) || 0 })}/>
                 <span>y:</span><input type="number" value={rotation.y}
-                /*onChange={(e) => setRotation({ ...rotation, y: parseFloat(e.target.value) || 0 })}*//>
+                onChange={(e) => setRotation({ ...rotation, y: parseFloat(e.target.value) || 0 })}/>
                 <span>z:</span><input type="number" value={rotation.z}
-                /*onChange={(e) => setRotation({ ...rotation, z: parseFloat(e.target.value) || 0 })}*//>
+                onChange={(e) => setRotation({ ...rotation, z: parseFloat(e.target.value) || 0 })}/>
                 </div>
             </div>
             <div className="transform-group">

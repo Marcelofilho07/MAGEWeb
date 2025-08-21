@@ -1,5 +1,5 @@
 import { useRef, type ChangeEvent } from 'react';
-import './UploadButton.css';
+import './style/Buttons.css';
 import { updateSceneWithURL} from '../renderer.ts';
 
 
@@ -19,7 +19,7 @@ export default function UploadButton() {
     <>
         <label className="upload-label">
             Upload Model
-            <input type="file" accept=".glb,.gltf" onChange={handleUpload} />
+            <input type="file" accept=".glb" onChange={handleUpload} />
         </label>
         
         <button onClick={handleAddToScene}>Add Model</button>

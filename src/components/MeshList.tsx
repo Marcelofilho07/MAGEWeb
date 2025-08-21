@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import './MeshList.css';
-import {onMeshListUpdate,  onSceneListRemove,  removeFromSceneWithID, setObjByID, updateSelectedObjTransform } from '../renderer';
+import './style/MeshList.css';
+import {getSelectedObj, onMeshListUpdate,  onSelectUpdate,  removeFromSceneWithID, setObjByID } from '../renderer';
 
 type listEntry = {
     id: number;
@@ -13,11 +13,11 @@ export default function MeshList() {
   
     useEffect(() => {
         const onMeshListUpdateUnsub = onMeshListUpdate.subscribe(handleNewSceneItem)
-        const onSceneListRemoveUnsub = onSceneListRemove.subscribe(handleRemove)
+        const onSelectUpdateUnsub = onSelectUpdate.subscribe(onNewSelect);
 
         return () => {
             onMeshListUpdateUnsub();
-            onSceneListRemoveUnsub();
+            onSelectUpdateUnsub();
         }
     }, []);
 
@@ -26,7 +26,6 @@ export default function MeshList() {
     }
 
     function handleRemove() {
-        console.log(selected);
         if(selected != 0) {
             if(removeFromSceneWithID(selected)) {
                 setList((prev) => prev.filter(entry => entry.id !== selected));
@@ -42,12 +41,19 @@ export default function MeshList() {
         setSelected(id);
     }
 
+    function onNewSelect(){
+        const newId = getSelectedObj()?.id;
+        if (newId) {
+            setSelected(newId);
+        }
+    }
+
     return (
         <div className="mesh-list">
         <div className="mesh-list-header">
             <span>Objects</span>
             <div className="mesh-list-buttons">
-                <button onClick={handleRemove}>-</button>
+                <button onClick={handleRemove}>Delete</button>
             </div>
         </div>
         <div>

@@ -1,106 +1,98 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
 import { Observer } from './observer';
-
+import { EffectComposer, FXAAShader, OrbitControls, OutlinePass, OutputPass, RenderPass, ShaderPass } from 'three/examples/jsm/Addons.js';
 
 export const onMeshListUpdate = new Observer<{id: number, name: string}>();
 export const onSceneListRemove = new Observer();
 export const onSelectUpdate = new Observer();
-let controls: FirstPersonControls;
-let camera: THREE.PerspectiveCamera;
 export let scene: THREE.Scene;
+
+let controls: OrbitControls;
+let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 const loader = new GLTFLoader();
 const clock = new THREE.Clock();
-
+const textureLoader = new THREE.TextureLoader();
+let placeholderTexture: THREE.Texture
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-
+let selectedObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
 let selectedObject: THREE.Object3D<THREE.Object3DEventMap> | null = null;
-
-const BasicShader = {
-
-	name: 'BasicShader',
-
-	uniforms: {},
-
-	vertexShader: /* glsl */`
-			precision mediump float;
-			precision mediump int;
-
-			uniform mat4 modelViewMatrix; // optional
-			uniform mat4 projectionMatrix; // optional
-			uniform float var;
-
-			attribute vec3 position;
-			attribute vec4 color;
-
-			varying vec3 vPosition;
-			varying vec4 vColor;
-
-			void main()	{
-				vPosition = position * var;
-				vColor = color;
-
-				gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-			}`,
-
-	fragmentShader: /* glsl */`
-			precision mediump float;
-			precision mediump int;
-
-			uniform float time;
-
-			varying vec3 vPosition;
-			varying vec4 vColor;
-
-			void main()	{
-
-				vec4 color = vec4( vColor );
-				color.r += sin( vPosition.x * 10.0 + time ) * 0.5;
-
-				gl_FragColor = color;
-
-			}`,
-
-};
-
+let composer: EffectComposer;
+let effectFXAA: ShaderPass;
+let outlinePass: OutlinePass;
 
 init();
 
 function init() {
-
-
 	camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
 	camera.position.set(0, 2, 5); // pull it back and up slightly
 
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color(0x87CEEB);
+
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
+	renderer.setSize(window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animation );
 	renderer.domElement.addEventListener('click', onClick);
 
-	controls = new FirstPersonControls(camera, renderer.domElement);
-	controls.movementSpeed = 10;
-	controls.lookSpeed = 0.0;
-	//controls.dragToLook = true;       // mouse drag to look
-	controls.autoForward = false;
+	// Set up controls
+	controls = new OrbitControls(camera, renderer.domElement);
+	controls.target.set(0, 0, 0);
 
+	// Set up some lights
+	const ambientColor = 0xFFFFFF;
+	const ambientIntensity = 2;
+	const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
+	scene.add(ambientLight);
+
+	const directionalColor = 0xFFFFFF;
+	const directionalIntensity = 2;
+	const directionalLight = new THREE.DirectionalLight(directionalColor, directionalIntensity);
+	directionalLight.position.set(5, 5, 5);
+	directionalLight.target.position.set(0, 0, 0);
+	scene.add(directionalLight);
+	scene.add(directionalLight.target);
+
+	const pointColor = 0xFFFFFF;
+	const pointIntensity = 100;
+	const pointLight = new THREE.PointLight(pointColor, pointIntensity);
+	pointLight.position.set(5, 5, 5);
+	scene.add(pointLight);
+
+	
+	placeholderTexture = textureLoader.load( 'placeholder_texture/templategrid_albedo.png' );
+	placeholderTexture.colorSpace = THREE.SRGBColorSpace;
+
+	// postprocessing
+	composer = new EffectComposer( renderer );
+
+	const renderPass = new RenderPass( scene, camera );
+	composer.addPass( renderPass );
+
+	outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
+	composer.addPass( outlinePass );
+
+	textureLoader.load( 'textures/tri_pattern.jpg', function ( texture ) {
+
+		outlinePass.patternTexture = texture;
+		texture.wrapS = THREE.RepeatWrapping;
+		texture.wrapT = THREE.RepeatWrapping;
+
+	} );
+
+	const outputPass = new OutputPass();
+	composer.addPass( outputPass );
+
+	effectFXAA = new ShaderPass( FXAAShader );
+	effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1	 / window.innerHeight );
+	composer.addPass( effectFXAA );
 }
 
-function animation( time: number ) {
-
-	// do not render if not in DOM:
-
-  	//requestAnimationFrame(animation);
-	if(selectedObject) {
-		selectedObject.rotation.y += 0.01; // rotate the selected object
-	}
+function animation() {
 	controls.update( clock.getDelta() );
-	renderer.render( scene, camera );
-
+	composer.render();
 }
 
 // respond to size changes:
@@ -110,54 +102,40 @@ function resize() {
 	const container = renderer.domElement.parentNode;
 
 	if( container ) {
+		renderer.setSize( container.offsetWidth, container.offsetHeight );
 
-		const width = container.offsetWidth;
-		const height = container.offsetHeight;
-
-		renderer.setSize( width, height );
-
-		camera.aspect = width / height;
+		camera.aspect = container.offsetWidth / container.offsetHeight;
 		camera.updateProjectionMatrix();
-
-		controls.handleResize();
 	}
 }
 
 window.addEventListener( 'resize', resize );
 
-resize();
-
-
-// expose a function to interact with react.js:
-
-export function mount( container ) {
+// mount scene with React:
+export function mount( container : ParentNode | null) {
 
 	if( container ) {
-
 		container.insertBefore( renderer.domElement, container.firstChild );
 		resize();
-
 	} else {
-
 		renderer.domElement.remove();
-
 	}
-
 }
 
 export function updateMeshList() {
-
+	const container = renderer.domElement.parentNode;
+	
 	if( container ) {
-
 		container.insertBefore( renderer.domElement, container.firstChild );
 		resize();
-
 	} else {
-
 		renderer.domElement.remove();
-
 	}
+}
 
+function addSelectedObject( object: THREE.Object3D<THREE.Object3DEventMap>) {
+	selectedObjects = [];
+	selectedObjects.push( object );
 }
 
 function onClick(event: MouseEvent) {
@@ -169,24 +147,39 @@ function onClick(event: MouseEvent) {
 	const intersects = raycaster.intersectObjects(scene.children);
 	if (intersects.length > 0) {
 		let object = intersects[0].object;
-		//console.log(object);
-		
+
 		// Traverse up to find the parent Group or object you want to select
 		while (object.parent && object.parent.type !== 'Scene') {
 			object = object.parent;
 		}
-		object.position.x += 1.0;
-		//object.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-		console.log(object.rotation);
-		object.scale.x *= 1.1;
-		object.scale.y *= 1.1;
-		object.scale.z *= 1.1;
+		selectedObject = object;
+		onSelectUpdate.emit();
+		
+		addSelectedObject( selectedObject );
+		outlinePass.selectedObjects = selectedObjects;
 	}
 };
 
-export async function updateSceneWithURL(URL: string): Promise<{id: number, name: string}>
-{
+export async function updateSceneWithURL(URL: string): Promise<{id: number, name: string}> {
     const model = await loader.loadAsync(URL);
+
+	model.scene.traverse((child) => {
+		if ((child as THREE.Mesh).isMesh) {
+			const mesh = child as THREE.Mesh;
+
+			const mat = mesh.material as THREE.Material;
+
+			// Replace non-light-reactive materials
+			if (mat.type === 'MeshBasicMaterial') {
+				const basic = mat as THREE.MeshBasicMaterial;
+
+				mesh.material = new THREE.MeshPhongMaterial({
+				color: basic.color.clone(),
+				map: basic.map || null,
+				});
+			}
+		}
+	});
 
 	scene.add(model.scene);
 	const id = model.scene.id;
@@ -195,22 +188,18 @@ export async function updateSceneWithURL(URL: string): Promise<{id: number, name
 	return {id, name};
 }
 
-export function removeFromSceneWithID(id: number): boolean
-{
+export function removeFromSceneWithID(id: number): boolean {
 	const object = scene.getObjectByProperty('id', id);
 	if (object) {
 		selectedObject = null
 		scene.remove(object);
-		console.log('success');
 		onSceneListRemove.emit();
 		return true;
 	}
-	console.log('fail');
 	return false;
 }
 
-export function removeFromSceneSelectedObject(): boolean
-{
+export function removeFromSceneSelectedObject(): boolean {
 	if (selectedObject) {
 		scene.remove(selectedObject);
 		selectedObject = null;
@@ -219,20 +208,21 @@ export function removeFromSceneSelectedObject(): boolean
 	return false;
 }
 
-export function setObjByID(id: number): boolean
-{
+export function setObjByID(id: number): boolean {
 	const object = scene.getObjectByProperty('id', id);
 	if (object) {
 		selectedObject = object;
 		onSelectUpdate.emit();
+		
+		addSelectedObject( selectedObject );
+		outlinePass.selectedObjects = selectedObjects;
 		return true;
 	}
 	selectedObject = null;
 	return false;
 }
 
-export function setObj(obj : THREE.Object3D<THREE.Object3DEventMap>): boolean
-{
+export function setObj(obj : THREE.Object3D<THREE.Object3DEventMap>): boolean {
 	if (obj) {
 		selectedObject = obj;
 		return true;
@@ -243,8 +233,7 @@ export function setObj(obj : THREE.Object3D<THREE.Object3DEventMap>): boolean
 
 export function getSelectObjTransform(): {	position: THREE.Vector3
 											rotation: THREE.Euler
-											scale: THREE.Vector3 } | null
-{
+											scale: THREE.Vector3 } | null {
 	if (selectedObject) {
 		return { position: selectedObject.position,
 				rotation: selectedObject.rotation,
@@ -255,24 +244,25 @@ export function getSelectObjTransform(): {	position: THREE.Vector3
 	return null;
 }
 
-export function getSelectedObjPosition(): THREE.Vector3
-{
+export function getSelectedObjPosition(): THREE.Vector3 {
 	if (selectedObject) {
 		return selectedObject.position;
 	}
 	return new THREE.Vector3;
 }
 
-export function getSelectedObjRotation(): THREE.Euler
-{
+export function getSelectedObjRotation(): {x: number, y: number, z: number} {
 	if (selectedObject) {
-		return selectedObject.rotation;
+		return {
+				x: THREE.MathUtils.radToDeg(selectedObject.rotation.x), 
+				y: THREE.MathUtils.radToDeg(selectedObject.rotation.y), 
+				z: THREE.MathUtils.radToDeg(selectedObject.rotation.z)
+			} ;
 	}
-	return new THREE.Euler;
+	return {x: 0, y: 0, z: 0};
 }
 
-export function getSelectedObjScale(): THREE.Vector3
-{
+export function getSelectedObjScale(): THREE.Vector3 {
 	if (selectedObject) {
 		return selectedObject.scale;
 	}
@@ -281,56 +271,61 @@ export function getSelectedObjScale(): THREE.Vector3
 
 export function updateSelectedObjTransform(position: {x:number , y:number, z:number},
 								rotation: {x:number , y:number, z:number},
-								scale: {x:number , y:number, z:number},)
-{
+								scale: {x:number , y:number, z:number},) {
 	if (selectedObject) {
 		selectedObject.position.set(position.x, position.y, position.z);
-        //selectedObject.rotation.set(rotation.x, rotation.y, rotation.z);
+
+		selectedObject.rotation.set(
+      			THREE.MathUtils.degToRad(rotation.x),
+      			THREE.MathUtils.degToRad(rotation.y),
+      			THREE.MathUtils.degToRad(rotation.z)
+    			);
         selectedObject.scale.set(scale.x, scale.y, scale.z);
 	}
 }
 
-export function addCube() 
-{
+export function addCube() {
 	const geometry = new THREE.BoxGeometry( 1, 1, 1 ); 
-	const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} ); 
+	const material = new THREE.MeshPhongMaterial( {color: 'grey', map: placeholderTexture} ); 
 	const cube = new THREE.Mesh( geometry, material ); 
 	scene.add( cube );
 	onMeshListUpdate.emit({ id: cube.id, name: cube.name || 'Cube' });
 }
 
-export function addPlane() 
-{
-	const geometry = new THREE.PlaneGeometry( 1, 1 );
-	const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
+export function addPlane() {
+	const geometry = new THREE.PlaneGeometry( 20, 20 );
+	const material = new THREE.MeshPhongMaterial( {color: 'grey', map: placeholderTexture, side: THREE.DoubleSide} );
 	const plane = new THREE.Mesh( geometry, material );
+	plane.rotateX(1.57);
+	plane.position.setY(-0.5);
 	scene.add( plane );
 	onMeshListUpdate.emit({ id: plane.id, name: plane.name || 'Plane' });
 }
 
-export function addCapsule() 
-{
+export function addCapsule() {
 	const geometry = new THREE.CapsuleGeometry( 1, 1, 4, 8 ); 
-	const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} ); 
+	const material = new THREE.MeshPhongMaterial( {color: 'grey', map: placeholderTexture} ); 
 	const capsule = new THREE.Mesh( geometry, material );
 	scene.add(capsule);
 	onMeshListUpdate.emit({ id: capsule.id, name: capsule.name || 'Capsule' });
 }
 
-export function addCone()
-{
-	const geometry = new THREE.ConeGeometry( 5, 20, 32 ); 
-	const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+export function addCone() {
+	const geometry = new THREE.ConeGeometry( 1, 1, 32 ); 
+	const material = new THREE.MeshPhongMaterial( {color: 'grey', map: placeholderTexture} );
 	const cone = new THREE.Mesh(geometry, material ); 
 	scene.add( cone );
 	onMeshListUpdate.emit({ id: cone.id, name: cone.name || 'Cone' });
 }
 
-export function addCylinder()
-{
-	const geometry = new THREE.CylinderGeometry( 5, 5, 20, 32 ); 
-	const material = new THREE.MeshBasicMaterial( {color: 0xffff00} ); 
-	const cylinder = new THREE.Mesh( geometry, material ); 
+export function addCylinder() {
+	const geometry = new THREE.CylinderGeometry( 1, 1, 2, 32 );
+	const material = new THREE.MeshPhongMaterial( {color: 'grey', map: placeholderTexture} );
+	const cylinder = new THREE.Mesh( geometry, material );
 	scene.add( cylinder );
 	onMeshListUpdate.emit({ id: cylinder.id, name: cylinder.name || 'Cylinder' });
+}
+
+export function getSelectedObj(): THREE.Object3D<THREE.Object3DEventMap> | null {
+	return selectedObject;
 }
