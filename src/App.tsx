@@ -1,8 +1,10 @@
 import { useCallback} from 'react';
-import type { ChangeEvent } from 'react';
 import './App.css';
-import { mount, updateSceneWithURL} from './renderer.ts';
+import { mount} from './renderer.ts';
 import MeshList from './components/MeshList.tsx';
+import TransformMenu from './components/TransformMenu.tsx';
+import UploadButton from './components/UploadButton.tsx';
+import AddPrimitiveButtons from './components/AddPrimitivesButtons.tsx';
 
 
 export default function App() {
@@ -15,7 +17,10 @@ export default function App() {
           <canvas id="myCanvas" />
         </div>
         <div className="sidebar">
-          <MeshList></MeshList>
+          <AddPrimitiveButtons/>
+          <UploadButton/>
+          <MeshList/>
+          <TransformMenu selected={true}/>
         </div>
       </div>
     </>

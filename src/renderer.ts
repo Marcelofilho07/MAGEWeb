@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
+import { Observer } from './observer';
 
 
+export const onMeshListUpdate = new Observer<{id: number, name: string}>();
+export const onSceneListRemove = new Observer();
+export const onSelectUpdate = new Observer();
 let controls: FirstPersonControls;
 let camera: THREE.PerspectiveCamera;
 export let scene: THREE.Scene;
@@ -73,7 +77,7 @@ function init() {
 	camera.position.set(0, 2, 5); // pull it back and up slightly
 
 	scene = new THREE.Scene();
-	
+	scene.background = new THREE.Color(0x87CEEB);
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setAnimationLoop( animation );
 	renderer.domElement.addEventListener('click', onClick);
@@ -83,6 +87,7 @@ function init() {
 	controls.lookSpeed = 0.0;
 	//controls.dragToLook = true;       // mouse drag to look
 	controls.autoForward = false;
+
 }
 
 function animation( time: number ) {
@@ -186,6 +191,7 @@ export async function updateSceneWithURL(URL: string): Promise<{id: number, name
 	scene.add(model.scene);
 	const id = model.scene.id;
 	const name = model.scene.name;
+	onMeshListUpdate.emit({id, name});
 	return {id, name};
 }
 
@@ -193,50 +199,138 @@ export function removeFromSceneWithID(id: number): boolean
 {
 	const object = scene.getObjectByProperty('id', id);
 	if (object) {
+		selectedObject = null
 		scene.remove(object);
 		console.log('success');
+		onSceneListRemove.emit();
 		return true;
 	}
 	console.log('fail');
 	return false;
 }
 
-export function getPosition(id: number): {x: number, y: number, z: number}
+export function removeFromSceneSelectedObject(): boolean
 {
-	const object = scene.getObjectByProperty('id', id);
-	if (object) {
-		const pos = object.position;
-		return {x: pos.x, y: pos.y, z: pos.z};
+	if (selectedObject) {
+		scene.remove(selectedObject);
+		selectedObject = null;
+		return true;
 	}
-	return {x: 0, y: 0, z: 0};
+	return false;
 }
 
-export function getRotation(id: number): {x: number, y: number, z: number}
-{
-	const object = scene.getObjectByProperty('id', id);
-	if (object) {
-		const rot = object.rotation;
-		return {x: rot.x, y: rot.y, z: rot.z};
-	}
-	return {x: 0, y: 0, z: 0};
-}
-
-export function getScale(id: number): {x: number, y: number, z: number}
-{
-	const object = scene.getObjectByProperty('id', id);
-	if (object) {
-		const scl = object.scale;
-		return {x: scl.x, y: scl.y, z: scl.z};
-	}
-	return {x: 1, y: 1, z: 1};
-}
-
-export function getObj(id: number): THREE.Object3D<THREE.Object3DEventMap> | null
+export function setObjByID(id: number): boolean
 {
 	const object = scene.getObjectByProperty('id', id);
 	if (object) {
 		selectedObject = object;
-		return object;
+		onSelectUpdate.emit();
+		return true;
 	}
+	selectedObject = null;
+	return false;
+}
+
+export function setObj(obj : THREE.Object3D<THREE.Object3DEventMap>): boolean
+{
+	if (obj) {
+		selectedObject = obj;
+		return true;
+	}
+	selectedObject = null;
+	return false;
+}
+
+export function getSelectObjTransform(): {	position: THREE.Vector3
+											rotation: THREE.Euler
+											scale: THREE.Vector3 } | null
+{
+	if (selectedObject) {
+		return { position: selectedObject.position,
+				rotation: selectedObject.rotation,
+				scale:selectedObject.scale
+		};
+	}
+
 	return null;
+}
+
+export function getSelectedObjPosition(): THREE.Vector3
+{
+	if (selectedObject) {
+		return selectedObject.position;
+	}
+	return new THREE.Vector3;
+}
+
+export function getSelectedObjRotation(): THREE.Euler
+{
+	if (selectedObject) {
+		return selectedObject.rotation;
+	}
+	return new THREE.Euler;
+}
+
+export function getSelectedObjScale(): THREE.Vector3
+{
+	if (selectedObject) {
+		return selectedObject.scale;
+	}
+	return new THREE.Vector3;
+}
+
+export function updateSelectedObjTransform(position: {x:number , y:number, z:number},
+								rotation: {x:number , y:number, z:number},
+								scale: {x:number , y:number, z:number},)
+{
+	if (selectedObject) {
+		selectedObject.position.set(position.x, position.y, position.z);
+        //selectedObject.rotation.set(rotation.x, rotation.y, rotation.z);
+        selectedObject.scale.set(scale.x, scale.y, scale.z);
+	}
+}
+
+export function addCube() 
+{
+	const geometry = new THREE.BoxGeometry( 1, 1, 1 ); 
+	const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} ); 
+	const cube = new THREE.Mesh( geometry, material ); 
+	scene.add( cube );
+	onMeshListUpdate.emit({ id: cube.id, name: cube.name || 'Cube' });
+}
+
+export function addPlane() 
+{
+	const geometry = new THREE.PlaneGeometry( 1, 1 );
+	const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
+	const plane = new THREE.Mesh( geometry, material );
+	scene.add( plane );
+	onMeshListUpdate.emit({ id: plane.id, name: plane.name || 'Plane' });
+}
+
+export function addCapsule() 
+{
+	const geometry = new THREE.CapsuleGeometry( 1, 1, 4, 8 ); 
+	const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} ); 
+	const capsule = new THREE.Mesh( geometry, material );
+	scene.add(capsule);
+	onMeshListUpdate.emit({ id: capsule.id, name: capsule.name || 'Capsule' });
+}
+
+export function addCone()
+{
+	const geometry = new THREE.ConeGeometry( 5, 20, 32 ); 
+	const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+	const cone = new THREE.Mesh(geometry, material ); 
+	scene.add( cone );
+	onMeshListUpdate.emit({ id: cone.id, name: cone.name || 'Cone' });
+}
+
+export function addCylinder()
+{
+	const geometry = new THREE.CylinderGeometry( 5, 5, 20, 32 ); 
+	const material = new THREE.MeshBasicMaterial( {color: 0xffff00} ); 
+	const cylinder = new THREE.Mesh( geometry, material ); 
+	scene.add( cylinder );
+	onMeshListUpdate.emit({ id: cylinder.id, name: cylinder.name || 'Cylinder' });
 }
