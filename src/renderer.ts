@@ -61,7 +61,7 @@ function init() {
 	pointLight.position.set(5, 5, 5);
 	scene.add(pointLight);
 
-	
+	// Default placeholder texture
 	placeholderTexture = textureLoader.load( 'placeholder_texture/templategrid_albedo.png' );
 	placeholderTexture.colorSpace = THREE.SRGBColorSpace;
 
@@ -99,7 +99,7 @@ function animation() {
 
 function resize() {
 
-	const container = renderer.domElement.parentNode;
+	const container = renderer.domElement.parentNode as HTMLElement;
 
 	if( container ) {
 		renderer.setSize( container.offsetWidth, container.offsetHeight );
